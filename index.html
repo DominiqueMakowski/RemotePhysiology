@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="https://unpkg.com/jspsych@7.3.1"></script>
+        <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.2"></script>
+        <!-- <script src="../../packages/extension-record-video/dist/index.browser.js"></script> -->
+        <script src="https://unpkg.com/@jspsych/extension-record-video@1.0.1"></script>
+        <!-- <script src="../../packages/plugin-initialize-camera/dist/index.browser.js"></script> -->
+        <script src="https://unpkg.com/@jspsych/plugin-initialize-camera@1.0.1"></script>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/jspsych@7.3.1/css/jspsych.css"
+        />
+    </head>
+    <body></body>
+    <script>
+        const jsPsych = initJsPsych({
+            extensions: [{ type: jsPsychExtensionRecordVideo }],
+            on_finish: function () {
+                // jsPsych.data.displayData("json")
+                jsPsych.data.get().localSave("json", "data.json")
+            },
+        })
+
+        const init_camera = {
+            type: jsPsychInitializeCamera,
+        }
+
+        const trial = {
+            type: jsPsychHtmlButtonResponse,
+            stimulus: `<p>Video is recording. Click done after a few seconds.</p>`,
+            choices: ["Done"],
+            extensions: [{ type: jsPsychExtensionRecordVideo }],
+        }
+
+        jsPsych.run([init_camera, trial])
+    </script>
+</html>
