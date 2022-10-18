@@ -1,23 +1,10 @@
-import base64
-import sys
-import urllib.request
-
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scipy.fftpack
 import scipy.signal
+import sklearn.decomposition
 
-# Convert json to mp4
-# ===================
-data = pd.read_json("data.json")
-
-video = base64.b64decode(data["record_video_data"][1])
-
-with open("video.mp4", "wb") as file:
-    file.write(video)
-    file.close()
 
 # Convert mp4 to array
 # ====================
@@ -74,30 +61,72 @@ def extract_face(path, classifier="haarcascade_frontalface_alt0.xml", blur=3):
     return np.array(frames), sampling_rate
 
 
-def fft_filter(video, fps, freq_min=1, freq_max=1.8):
-    fft = scipy.fftpack.fft(video, axis=0)
-    iff = scipy.fftpack.ifft(fft, axis=0)
+def webcam_heartrate(frames, sampling_rate=30):
+    raw = np.mean(np.mean(np.mean(frames, axis=1), axis=1), axis=1)
 
-    return iff, fft, frequencies
+    # Clean
+    raw = nk.signal_filter(
+        raw,
+        sampling_rate=sampling_rate,
+        lowcut=1,
+        highcut=1.8,
+    )
+
+    iff = scipy.fftpack.ifft(scipy.fftpack.fft(frames, axis=0), axis=0)
+    iff = np.mean(np.mean(np.mean(iff, axis=1), axis=1), axis=1)
+    return raw, iff
 
 
-frames, fps = extract_faces("video.mp4")
+def temporal_ideal_filter(tensor, sampling_rate=30, low=0.4, high=2, axis=0):
+    fft = scipy.fftpack.fft(tensor, axis=axis)
+    frequencies = scipy.fftpack.fftfreq(tensor.shape[0], d=1.0 / sampling_rate)
+    bound_low = (np.abs(frequencies - low)).argmin()
+    bound_high = (np.abs(frequencies - high)).argmin()
+    fft[:bound_low] = 0
+    fft[bound_high:-bound_high] = 0
+    fft[-bound_low:] = 0
+    iff = scipy.fftpack.ifft(fft, axis=axis)
+    return np.abs(iff)
+
+
+def webcam_heartrate(frames, sampling_rate=30):
+    """full signal processing pipeline"""
+    # Average all pixels in the different colors
+    mixed_signals = np.mean(frames, axis=(1, 2))  # (len, color)
+    raw = np.mean(mixed_signals, axis=1)
+
+    # Filter signals
+    def preprocess(signal, sampling_rate=sampling_rate):
+        return nk.signal_filter(
+            signal,
+            sampling_rate=sampling_rate,
+            lowcut=1,
+            highcut=2,
+        )
+
+    normalized = np.apply_along_axis(preprocess, 0, mixed_signals)  # detrend and normalize
+
+    nk.signal_plot(
+        [normalized[:, 0], normalized[:, 1], normalized[:, 2]], sampling_rate=sampling_rate
+    )
+
+    ica = sklearn.decomposition.FastICA(n_components=1, max_iter=1000)
+    ica_transformed = ica.fit_transform(normalized)
+    nk.signal_plot(ica_transformed[:, 0], sampling_rate=sampling_rate)
+    nk.signal_plot(
+        [ica_transformed[:, 0], ica_transformed[:, 1], ica_transformed[:, 2]],
+        sampling_rate=sampling_rate,
+    )
+
+    return ica_transformed
+
+
+frames, sampling_rate = extract_face("video.mp4")
 plt.imshow(frames[100, :, :, 0])
+filtered_tensor = temporal_ideal_filter(frames, sampling_rate=sampling_rate)
+plt.imshow(filtered_tensor[100, :, :, 0])
 
-iff, fft, frequencies = fft_filter(frames, fps)
-heart_rate, signal = find_heart_rate(fft, frequencies)
-signal = np.mean(np.mean(np.mean(iff, axis=1), axis=1), axis=1)
-raw = nk.signal_filter(
-    np.mean(np.mean(np.mean(frames, axis=1), axis=1), axis=1),
-    sampling_rate=fps,
-    lowcut=1,
-    highcut=1.8,
-)
-nk.signal_plot(
-    [raw, signal.real, signal.imag], sampling_rate=fps, title="Heart Rate", standardize=True
-)
+raw, iff = webcam_heartrate(frames, sampling_rate)
 
-nk.ppg_findpeaks(signal, sampling_rate=fps)
-nk.signal_rate([27, 61, 85, 108, 138], sampling_rate=fps)
 
-plt.plot(t, signal.real, "b-", t, signal.imag, "r--")
+nk.signal_plot([raw, iff.real], sampling_rate=sampling_rate, title="Heart Rate", standardize=True)
