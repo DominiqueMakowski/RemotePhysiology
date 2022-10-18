@@ -1,32 +1,31 @@
 import cv2
 import matplotlib.pyplot as plt
+import menpo.io as mio
+import menpo.landmark
 import numpy as np
 import scipy.fftpack
 import scipy.signal
 import sklearn.decomposition
 
 
-# Convert mp4 to array
-# ====================
 def _build_laplacian_pyramid(img, levels=3):
     pyramid = img.copy()
+    (height, width, depth) = img.shape
     for level in range(levels):
         pyramid = cv2.pyrDown(pyramid)
+    for level in range(levels):
+        pyramid = cv2.pyrUp(pyramid)
 
-    upsampled = cv2.pyrUp(pyramid)
-    (height, width, depth) = upsampled.shape
-    pyramid = cv2.resize(pyramid, (height, width))
-
-    return cv2.subtract(pyramid, upsampled)
+    return pyramid
 
 
-def extract_face(path, classifier="haarcascade_frontalface_alt0.xml", blur=3):
+def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
     """
     extract_faces _summary_
 
     Parameters
     ----------
-    path : str
+    file : str
         The path of a cascade classifier.
     """
 
@@ -34,25 +33,25 @@ def extract_face(path, classifier="haarcascade_frontalface_alt0.xml", blur=3):
     # E.g., from https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/
     faceCascade = cv2.CascadeClassifier(classifier)
 
-    capture = cv2.VideoCapture(path)
+    capture = cv2.VideoCapture(file)
     sampling_rate = int(capture.get(cv2.CAP_PROP_FPS))
     frames = []
-    check = True
+    face_detected = False
 
     while capture.isOpened():
         success, img = capture.read()
         if not success:
             break
 
-        if check:
+        if face_detected is False:
             face_detector = faceCascade.detectMultiScale(
                 cv2.cvtColor(img, cv2.COLOR_RGB2GRAY), 1.3, 5
             )
             if len(face_detector) > 0:
                 (x, y, w, h) = face_detector[0]
-                check = False
+                face_detected = True
 
-        if not check:
+        if face_detected:
             img = cv2.resize(img[y : y + h, x : x + w], (500, 500)) * (1.0 / 255)
             frames.append(_build_laplacian_pyramid(img, levels=blur))
 
@@ -121,9 +120,38 @@ def extract_face(path, classifier="haarcascade_frontalface_alt0.xml", blur=3):
 #     return ica_transformed
 
 
-frames, sampling_rate = extract_face("video.mp4")
-plt.imshow(frames[100, :, :, 0])
+frames, sampling_rate = extract_face(file="video.mp4", blur=0)
+plt.imshow(frames[0, :, :, 0])
 
+# Plane-Orthogonal-to-Skin (POS)
+# ==============================
+# 4. Spatial averaging
+C = np.mean(frames, axis=(1, 2))  # (len, color)
+S = np.zeros((len(frames), 2))
+
+for n, Ci in enumerate(C):
+    if n > sampling_rate:
+        # 5. Temporal normalization
+        Cn = Ci / np.mean(C[n - sampling_rate : n + 1], axis=0)
+    else:
+        Cn = Ci / np.mean(C[0 : n + 1], axis=0)
+
+    # 6. Projection
+    projection_matrix = np.array([[0, 1, -1], [-2, 1, 1]])
+    S[n, :] = np.matmul(projection_matrix, Cn)
+
+h = S[:, 0] + (np.std(S[:, 0]) / np.std(S[:, 1])) * S[:, 1]
+
+nk.signal_plot(
+    [
+        h,
+        nk.signal_filter(h, sampling_rate=sampling_rate, lowcut=1, highcut=1.8),
+        np.mean(C, axis=1),
+        nk.signal_filter(np.mean(C, axis=1), sampling_rate=sampling_rate, lowcut=1, highcut=1.8),
+    ],
+    sampling_rate=sampling_rate,
+    standardize=True,
+)
 
 # filtered_tensor = temporal_ideal_filter(frames, sampling_rate=sampling_rate)
 # plt.imshow(filtered_tensor[100, :, :, 0])
