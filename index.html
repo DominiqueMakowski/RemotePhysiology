@@ -17,8 +17,8 @@
         const jsPsych = initJsPsych({
             extensions: [{ type: jsPsychExtensionRecordVideo }],
             on_finish: function () {
-                // jsPsych.data.displayData("json")
                 jsPsych.data.get().localSave("json", "data.json")
+                jsPsych.data.displayData("json")
             },
         })
 
@@ -28,7 +28,7 @@
 
         const trial = {
             type: jsPsychHtmlButtonResponse,
-            stimulus: `<p>Video is recording. Click done after a few seconds.</p>`,
+            stimulus: `<p>Video is recording.<br><br>Click done after a few seconds.</p>`,
             choices: ["Done"],
             extensions: [{ type: jsPsychExtensionRecordVideo }],
         }
