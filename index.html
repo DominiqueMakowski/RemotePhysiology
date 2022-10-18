@@ -14,6 +14,7 @@
     </head>
     <body></body>
     <script>
+
         const jsPsych = initJsPsych({
             extensions: [{ type: jsPsychExtensionRecordVideo }],
             on_finish: function () {
@@ -26,13 +27,39 @@
             type: jsPsychInitializeCamera,
         }
 
+        // Create marker to set onset/offset for photosensor
+        function create_marker(marker_position, color = "black") {
+            const html = `<div id="marker" style="position: absolute; background-color: ${color};\
+            left:${marker_position[0]}px; top:${marker_position[1]}px; \
+            width:${marker_position[2]}px; height:${marker_position[3]}px";></div>`
+            document.querySelector("body").insertAdjacentHTML("beforeend", html)
+
+        }
+
+        marker_position = [0, 0, 100, 100]
+
+        // function to remove marker after set interval
+        function TimeOut() {
+            document.querySelector("#marker").remove()
+        }
+
         const trial = {
             type: jsPsychHtmlButtonResponse,
             stimulus: `<p>Video is recording.<br><br>Click done after a few seconds.</p>`,
             choices: ["Done"],
             extensions: [{ type: jsPsychExtensionRecordVideo }],
+            on_start: function(){
+                create_marker(marker_position, (color='black')),
+                setTimeout(TimeOut, 500)   // 500 milliseconds
+            },
+            on_finish: function () {
+                create_marker(marker_position, (color='black')),
+                setTimeout(TimeOut, 500)   // 500 milliseconds
+            },
         }
 
         jsPsych.run([init_camera, trial])
+
+
     </script>
 </html>
