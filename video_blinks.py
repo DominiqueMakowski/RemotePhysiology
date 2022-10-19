@@ -1,37 +1,73 @@
 import cv2
 import matplotlib.pyplot as plt
-import menpo.io as mio
+import menpo.io
 import menpo.landmark
+import menpodetect
+import neurokit2 as nk
 import numpy as np
 import scipy.fftpack
 import scipy.signal
 import sklearn.decomposition
+from menpodetect import load_dlib_frontal_face_detector
+
+frames, sampling_rate = nk.read_video("data/video.mp4")
 
 
-def _build_laplacian_pyramid(img, levels=3):
-    pyramid = img.copy()
-    (height, width, depth) = img.shape
-    for level in range(levels):
-        pyramid = cv2.pyrDown(pyramid)
-    for level in range(levels):
-        pyramid = cv2.pyrUp(pyramid)
+plt.imshow(frames[0, 2, :, :])  # (frame, RGB-channel, height, width)
 
-    return pyramid
+img = menpo.image.Image(frames[0, :, :, :], copy=True)
+
+img_bw = img.as_greyscale()
+
+# Face detection
+faces = menpodetect.load_opencv_frontal_face_detector()(img_bw)
+print("{} detected faces.".format(len(faces)))
+
+# Eyes detection
+eyes = menpodetect.load_opencv_eye_detector()(img_bw)
+print("{} detected eyes.".format(len(eyes)))
+
+img_bw.view()
+faces[0].view(line_width=1, render_markers=False, line_colour="g")
+eyes[0].view(line_width=1, render_markers=False, line_colour="r")
+eyes[1].view(line_width=1, render_markers=False, line_colour="r")
 
 
-def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
+# initial bbox
+initial_bbox = bboxes[0]
+
+# fit image
+result = fitter.fit_from_bb(
+    image, initial_bbox, max_iters=[15, 5], gt_shape=image.landmarks["PTS"].lms
+)
+
+# print result
+print(result)
+
+# View
+img.view_landmarks(group="face_0", with_labels=True)
+
+
+import menpowidgets
+
+menpowidgets.visualize_images(img)
+
+# https://github.com/opencv/opencv/blob/master/data/haarcascades/
+
+
+def extract_eyes(file, classifier="utils/haarcascade_eye.xml", blur=3):
     """
     extract_faces _summary_
 
     Parameters
     ----------
-    file : str
-        The path of a cascade classifier.
+    classifier : str
+        The path of a cascade classifier. https://github.com/opencv/opencv/blob/master/data/haarcascades/
     """
-    
+
     # TODO: is there a way to read that from online?
     # E.g., from https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/
-    faceCascade = cv2.CascadeClassifier(classifier)
+    Model = cv2.CascadeClassifier(classifier)
 
     capture = cv2.VideoCapture(file)
     sampling_rate = int(capture.get(cv2.CAP_PROP_FPS))
@@ -120,7 +156,7 @@ def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
 #     return ica_transformed
 
 
-frames, sampling_rate = extract_face(file="video.mp4", blur=0)
+frames, sampling_rate = extract_face(file="data/video.mp4", blur=0)
 plt.imshow(frames[0, :, :, 0])
 
 # Plane-Orthogonal-to-Skin (POS)
