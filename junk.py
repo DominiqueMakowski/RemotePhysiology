@@ -28,7 +28,7 @@ def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
     file : str
         The path of a cascade classifier.
     """
-    
+
     # TODO: is there a way to read that from online?
     # E.g., from https://raw.githubusercontent.com/opencv/opencv/master/data/haarcascades/
     faceCascade = cv2.CascadeClassifier(classifier)
@@ -119,39 +119,6 @@ def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
 
 #     return ica_transformed
 
-
-frames, sampling_rate = extract_face(file="video.mp4", blur=0)
-plt.imshow(frames[0, :, :, 0])
-
-# Plane-Orthogonal-to-Skin (POS)
-# ==============================
-# 4. Spatial averaging
-C = np.mean(frames, axis=(1, 2))  # (len, color)
-S = np.zeros((len(frames), 2))
-
-for n, Ci in enumerate(C):
-    if n > sampling_rate:
-        # 5. Temporal normalization
-        Cn = Ci / np.mean(C[n - sampling_rate : n + 1], axis=0)
-    else:
-        Cn = Ci / np.mean(C[0 : n + 1], axis=0)
-
-    # 6. Projection
-    projection_matrix = np.array([[0, 1, -1], [-2, 1, 1]])
-    S[n, :] = np.matmul(projection_matrix, Cn)
-
-h = S[:, 0] + (np.std(S[:, 0]) / np.std(S[:, 1])) * S[:, 1]
-
-nk.signal_plot(
-    [
-        h,
-        nk.signal_filter(h, sampling_rate=sampling_rate, lowcut=1, highcut=1.8),
-        np.mean(C, axis=1),
-        nk.signal_filter(np.mean(C, axis=1), sampling_rate=sampling_rate, lowcut=1, highcut=1.8),
-    ],
-    sampling_rate=sampling_rate,
-    standardize=True,
-)
 
 # filtered_tensor = temporal_ideal_filter(frames, sampling_rate=sampling_rate)
 # plt.imshow(filtered_tensor[100, :, :, 0])
