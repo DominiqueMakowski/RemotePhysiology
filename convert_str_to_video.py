@@ -1,13 +1,16 @@
 import base64
+import glob
 
 import pandas as pd
 
 # Convert json to mp4
 # ===================
-data = pd.read_json("data.json")
+for file in glob.glob("data/*.json"):
+    print(file)
+    data = pd.read_json(file)
 
-video = base64.b64decode(data["record_video_data"][1])
+    video = base64.b64decode(data["video"][0])
 
-with open("video.mp4", "wb") as file:
-    file.write(video)
-    file.close()
+    with open(file.replace(".json", ".mp4"), "wb") as f:
+        f.write(video)
+        f.close()
