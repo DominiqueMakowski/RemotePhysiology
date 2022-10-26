@@ -49,15 +49,45 @@ for file in glob.glob("data/*.txt"):
 
     # Truncate
     dat = dat.iloc[events["onset"][0] : events["onset"][0] + events["duration"][0]]
+    # Save
+    dat.to_csv(file.replace(".txt", "_part1.csv"), index=False)
 
-    # 3. Benchmark using pyVHR
-    # ======================
+# 3. Benchmark using pyVHR
+# =========================
+for file in glob.glob("data/*_part1.csv"):
+    print(file)
+    data = pd.read_csv(file)
+
     pipe = pyVHR.analysis.pipeline.Pipeline()
     time, BPM, uncertainty = pipe.run_on_video(
-        file.replace(".txt", ".mp4"), roi_approach="patches", roi_method="faceparsing"
+        file.replace("_part1.csv", ".mp4"),
+        roi_approach="patches",
+        roi_method="faceparsing",
+        method="cpu_POS",
+        bpm_type="welch",
+        pre_filt=False,
+        post_filt=False,
     )
 
-    dat["pyVHR"] = nk.signal_resample(BPM, desired_length=len(dat))
+    data["pyVHR"] = nk.signal_resample(BPM, desired_length=len(data))
 
     # Save
-    dat.to_csv(file.replace(".txt", ".csv"), index=False)
+    data.to_csv(file.replace("_part1.csv", "_part2.csv"), index=False)
+    # os.remove(file)
+
+# 4. Benchmark using NK
+# =========================
+for file in glob.glob("data/*_part2.csv"):
+    print(file)
+    data = pd.read_csv(file)
+
+    video, _ = nk.read_video(file.replace("_part2.csv", ".mp4"))
+    ppg = nk.video_ppg(video, sampling_rate=30)
+
+    data["nkVHR"] = nk.signal_resample(ppg, desired_length=len(data))
+
+    # Save
+    data.to_csv(file.replace("_part2.csv", ".csv"), index=False)
+    # os.remove(file)
+
+print("FINISHED.")

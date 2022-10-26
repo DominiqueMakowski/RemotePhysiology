@@ -127,3 +127,38 @@ def extract_face(file, classifier="haarcascade_frontalface_alt0.xml", blur=3):
 
 
 # nk.signal_plot([raw, iff.real], sampling_rate=sampling_rate, title="Heart Rate", standardize=True)
+
+
+plt.imshow(frames[0, 2, :, :])  # (frame, RGB-channel, height, width)
+
+img = menpo.image.Image(frames[0, :, :, :], copy=True)
+
+img_bw = img.as_greyscale()
+
+# Face detection
+faces = menpodetect.load_opencv_frontal_face_detector()(img_bw)
+print("{} detected faces.".format(len(faces)))
+
+# Eyes detection
+eyes = menpodetect.load_opencv_eye_detector()(img_bw)
+print("{} detected eyes.".format(len(eyes)))
+
+img_bw.view()
+faces[0].view(line_width=1, render_markers=False, line_colour="g")
+eyes[0].view(line_width=1, render_markers=False, line_colour="r")
+eyes[1].view(line_width=1, render_markers=False, line_colour="r")
+
+
+# initial bbox
+initial_bbox = bboxes[0]
+
+# fit image
+result = fitter.fit_from_bb(
+    image, initial_bbox, max_iters=[15, 5], gt_shape=image.landmarks["PTS"].lms
+)
+
+# print result
+print(result)
+
+# View
+img.view_landmarks(group="face_0", with_labels=True)
