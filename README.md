@@ -5,6 +5,10 @@ An exploration of tools to extract physiological features (heart rate, blinks, .
 We compared the algorithms available in the [**NeuroKit**](https://github.com/neuropsychology/NeuroKit/pull/736) package for remote physiology with other established implementations, against a ground truth of true physiological data.
 
 
+## Conclusion
+
+We analyzed two subjects. It **doesn't work at all**. No correlation whatsoever between real and estimated PPG. Either I'm doing something wrong or :shrug:. Please halp.
+
 
 ## Methods
 
