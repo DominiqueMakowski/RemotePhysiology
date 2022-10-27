@@ -11,12 +11,10 @@ for file in glob.glob("data/*A.csv"):
     data = pd.read_csv(file)
 
     # Filter
-    data["pyVHR"] = nk.signal_filter(data["pyVHR"], sampling_rate=1000, lowcut=0.65, highcut=4)
-    data["nkPPG"] = nk.signal_filter(data["nkVHR"], sampling_rate=1000, lowcut=0.65, highcut=4)
+    data["rPPG"] = nk.signal_filter(data["rPPG"], sampling_rate=1000, lowcut=0.65, highcut=4)
     data["nkVHR"] = nk.signal_rate(
-        nk.ppg_findpeaks(data["nkPPG"])["PPG_Peaks"], sampling_rate=1000, desired_length=len(data)
+        nk.ppg_findpeaks(data["rPPG"])["PPG_Peaks"], sampling_rate=1000, desired_length=len(data)
     )
-
     # ===================
     # Visualize
     # ===================
@@ -32,10 +30,11 @@ for file in glob.glob("data/*A.csv"):
         frames=5,
         signals=[
             dat["PPG_Clean"],
-            dat["nkPPG"],
+            dat["rPPG"],
             dat["PPG_Rate"],
             dat["nkVHR"],
-            dat["pyVHR"],
+            dat["pyVHR_POS"],
+            dat["pyVHR_LGI"],
         ],
     )
     fig = plt.gcf()
@@ -44,7 +43,8 @@ for file in glob.glob("data/*A.csv"):
     ax[2].set_ylabel("rPPG")
     ax[3].set_ylabel("Heart Rate (True)")
     ax[4].set_ylabel("Heart Rate (nkVHR)")
-    ax[5].set_ylabel("Heart Rate (pyVHR)")
+    ax[5].set_ylabel("Heart Rate (pyVHR - POS)")
+    ax[6].set_ylabel("Heart Rate (pyVHR - LGI)")
     plt.legend()
     fig.set_size_inches(10, 10)
     plt.savefig(f"figures/{name}_video.png")
@@ -56,11 +56,11 @@ for file in glob.glob("data/*A.csv"):
     fig, ax = plt.subplot_mosaic(
         [["upper", "upper"], ["lower left", "lower right"]], figsize=(12, 12)
     )
-    corr = data[["ECG_Rate", "PPG_Rate", "nkVHR", "pyVHR"]].corr()
+    corr = data[["ECG_Rate", "PPG_Rate", "nkVHR", "pyVHR_POS", "pyVHR_LGI"]].corr()
     sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax["upper"])
     sns.regplot(
         x=data["PPG_Rate"],
-        y=data["pyVHR"],
+        y=data["pyVHR_POS"],
         color="red",
         scatter_kws={"alpha": 0.1, "color": "grey"},
         ax=ax["lower left"],

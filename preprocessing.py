@@ -2,6 +2,7 @@ import base64
 import glob
 
 import neurokit2 as nk
+import numpy as np
 import pandas as pd
 import pyVHR.analysis.pipeline
 
@@ -59,17 +60,45 @@ for file in glob.glob("data/*_part1.csv"):
     data = pd.read_csv(file)
 
     pipe = pyVHR.analysis.pipeline.Pipeline()
+
     time, BPM, uncertainty = pipe.run_on_video(
         file.replace("_part1.csv", ".mp4"),
-        roi_approach="patches",
-        roi_method="faceparsing",
+        roi_approach="hol",
+        roi_method="convexhull",
         method="cpu_POS",
         bpm_type="welch",
         pre_filt=False,
         post_filt=False,
     )
+    data["pyVHR_POS"] = nk.signal_interpolate(
+        time, BPM, x_new=np.linspace(0, time.max(), len(data)), method="monotone_cubic"
+    )
 
-    data["pyVHR"] = nk.signal_resample(BPM, desired_length=len(data))
+    # time, BPM, uncertainty = pipe.run_on_video(
+    #     file.replace("_part1.csv", ".mp4"),
+    #     roi_approach="patches",
+    #     roi_method="faceparsing",
+    #     method="cpu_POS",
+    #     bpm_type="welch",
+    #     pre_filt=False,
+    #     post_filt=False,
+    # )
+    # data["pyVHR_POS2"] = nk.signal_interpolate(
+    #     time, BPM, x_new=np.arange(len(data)), method="monotone_cubic"
+    # )
+
+    time, BPM, uncertainty = pipe.run_on_video(
+        file.replace("_part1.csv", ".mp4"),
+        roi_approach="hol",
+        roi_method="convexhull",
+        method="cpu_LGI",
+        bpm_type="welch",
+        pre_filt=False,
+        post_filt=False,
+    )
+    data["pyVHR_LGI"] = nk.signal_interpolate(
+        time, BPM, x_new=np.linspace(0, time.max(), len(data)), method="monotone_cubic"
+    )
 
     # Save
     data.to_csv(file.replace("_part1.csv", "_part2.csv"), index=False)
@@ -84,7 +113,7 @@ for file in glob.glob("data/*_part2.csv"):
     video, _ = nk.read_video(file.replace("_part2.csv", ".mp4"))
     ppg = nk.video_ppg(video, sampling_rate=30)
 
-    data["nkVHR"] = nk.signal_resample(ppg, desired_length=len(data))
+    data["rPPG"] = nk.signal_resample(ppg, sampling_rate=30, desired_length=len(data))
 
     # Save
     data.to_csv(file.replace("_part2.csv", ".csv"), index=False)
